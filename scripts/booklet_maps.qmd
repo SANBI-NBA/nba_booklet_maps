@@ -12,6 +12,7 @@ editor: visual
 #| include: false
 
 # Add packages: 
+#devtools::install_github("SANBI-NBA/nbaR")
 library(tidyverse)
 library(sf)
 library(nbaR)
@@ -52,6 +53,58 @@ sa_pei <- st_read(list.files(path=here::here("data"),
 
 ```
 
+### data prep
+
+```{r}
+#province outlines without eez
+provinces <- sa_pei %>% 
+  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands", 
+                          "EEZ - mainland marine"))
+
+#province outlines with eez
+provinces_eez <- sa_pei %>% 
+  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands"))
+
+#Lesotho and Eswatini
+le_esw <- sa_pei %>% 
+  filter(PROVINCE %in% c("Lesotho", "Eswatini"))
+
+#PEI
+pei <- sa_pei %>% 
+  filter(PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands"))
+
+
+#marine benthic ecosystem protection level
+pro_benth_marine <- marine %>%
+  filter(ecosystem_functional_type_getl3 !="Pelagic ocean waters") %>% 
+  select(ecosystem_type, protection_level) %>%
+  ungroup() 
+
+#marine pelagic ecosystem protection level
+pro_benth_marine <- marine %>%
+  filter(ecosystem_functional_type_getl3 =="Pelagic ocean waters") %>% 
+  select(ecosystem_type, protection_level) %>%
+  ungroup() 
+
+
+## estuaries as points
+est_pnt <- "NA" %>%
+  st_cast("POLYGON") %>% #get each polygon
+  st_centroid() %>%   #make points
+  mutate(protection_level == factor(protection_level, levels = nbaR::NBA_categories))%>% #match category to it's colour
+  mutate(threat_status == factor(threat_status, levels = nbaR::NBA_categories)) %>% #match category to it's colour
+  st_jitter(nc_points, amount = 5000) #jitter points
+
+
+
+
+```
+
+
+
 ## Protection level plots
 
 
@@ -64,39 +117,28 @@ sa_pei <- st_read(list.files(path=here::here("data"),
 #| fig-width: 28.34646
 #| fig-height: 18.89764
 
-pro_benth_marine <- marine %>%
-  filter(ecosystem_functional_type_getl3 !="Pelagic ocean waters") %>% 
-  select(ecosystem_type, protection_level) %>%
-  ungroup() 
-
-pro_pel_marine <- marine %>%
-  filter(ecosystem_functional_type_getl3 =="Pelagic ocean waters") %>% 
-  select(ecosystem_type, protection_level) %>%
-  ungroup()
- 
 
 
-pro_level <- nbaR::nba_map(pro_benth_marine,
-                      COLS = NULL,
+#combine terrestrial and marine benthic ecosystem protection level
+
+
+
+##map
+
+pro_level <- nbaR::nba_map(x,
                       geometry,
-                      CAP = "Benthic protection level medium 2025",
-                      FILL = pro_lvl_tash_med)
+                      FILL = protection_level)
 
 
-pro_level_clean <- pro_level
-pro_level_clean$layers <- Filter(function(l) {
-  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
-}, pro_level$layers)
-
-pro_level_clean+
-  geom_sf(data=pro_level_benth_poly, colour = "black", fill = NA)+
-  theme(panel.border = element_blank(),
-        legend.key.size = unit(2, "cm"),
-        legend.text = element_text(size = 20))
+pro_level+
+  geom_sf(data=pro_benth_marine, colour = "black", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  
 
 
-ggsave("outputs/EPL_med_2025_map_benth.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
-#st_write(pro_level_benth_poly, "outputs/pro_level.gpkg")
+ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
 
 ```
 
@@ -111,27 +153,29 @@ ggsave("outputs/EPL_med_2025_map_benth.png", height = 48, width = 72, units = 'c
 #| fig-width: 28.34646
 #| fig-height: 18.89764
 
-##pelagic
-pro_level <- nbaR::nba_map(pro_level_pel_poly,
-                      COLS = NULL,
+
+
+## will have to think about how to jitter esturaries? 
+## and then colour and scale... 
+
+
+pro_level_marine <- nbaR::nba_map(pro_pel_marine,
                       geometry,
-                      CAP = "Pelagic protection level lite 2025",
-                      FILL = pro_lvl_tash_med)
-
-# Remove layers that add annotation_scale or annotation_north_arrow
-pro_level_clean <- pro_level
-pro_level_clean$layers <- Filter(function(l) {
-  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
-}, pro_level$layers)
-
-pro_level_clean+
-  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
-  theme(panel.border = element_blank(),
-        legend.key.size = unit(2, "cm"),
-        legend.text = element_text(size = 20))
+                      FILL = protection_level)
 
 
-ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+pro_level_marine+
+  geom_sf(data = est_pnt, aes(size = est_size, fill = protection_level)) +
+  ggplot2::scale_size(range = c(3, 15)) +
+  geom_sf(data=pro_pel_marine, colour = "black", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  
+
+
+ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
 
 ```
 
@@ -146,27 +190,32 @@ ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm'
 #| fig-width: 28.34646
 #| fig-height: 18.89764
 
-##pelagic
-pro_level <- nbaR::nba_map(pro_level_pel_poly,
-                      COLS = NULL,
+##Rivers
+
+#province outlines
+provinces <- sa_pei %>% 
+  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands"))
+
+#Lesotho and Eswatini
+le_esw <- sa_pei %>% 
+  filter(PROVINCE %in% c("Lesotho", "Eswatini"))
+
+
+
+pro_level <- nbaR::nba_map(rivers,
                       geometry,
-                      CAP = "Pelagic protection level lite 2025",
-                      FILL = pro_lvl_tash_med)
-
-# Remove layers that add annotation_scale or annotation_north_arrow
-pro_level_clean <- pro_level
-pro_level_clean$layers <- Filter(function(l) {
-  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
-}, pro_level$layers)
-
-pro_level_clean+
-  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
-  theme(panel.border = element_blank(),
-        legend.key.size = unit(2, "cm"),
-        legend.text = element_text(size = 20))
+                      FILL = protection_level)
 
 
-ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+pro_level+
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  
+
+
+ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
 
 ```
 
@@ -180,27 +229,36 @@ ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm'
 #| fig-width: 28.34646
 #| fig-height: 18.89764
 
-##pelagic
-pro_level <- nbaR::nba_map(pro_level_pel_poly,
-                      COLS = NULL,
+### will have to think about colouring the lines?
+
+##Wetlands
+
+#province outlines
+provinces <- sa_pei %>% 
+  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands"))
+
+#Lesotho and Eswatini
+le_esw <- sa_pei %>% 
+  filter(PROVINCE %in% c("Lesotho", "Eswatini"))
+
+
+
+pro_level <- nbaR::nba_map(wetlands,
                       geometry,
-                      CAP = "Pelagic protection level lite 2025",
-                      FILL = pro_lvl_tash_med)
-
-# Remove layers that add annotation_scale or annotation_north_arrow
-pro_level_clean <- pro_level
-pro_level_clean$layers <- Filter(function(l) {
-  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
-}, pro_level$layers)
-
-pro_level_clean+
-  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
-  theme(panel.border = element_blank(),
-        legend.key.size = unit(2, "cm"),
-        legend.text = element_text(size = 20))
+                      FILL = protection_level)
 
 
-ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+pro_level+
+  geom_sf(linewidth = 0.5) + #increase the size of the outlines to make the wetlands visible
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  
+
+
+ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+
 
 ```
 
