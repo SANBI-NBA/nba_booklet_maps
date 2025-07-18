@@ -1,0 +1,247 @@
+---
+title: "booklet maps"
+format: pdf
+editor: visual
+---
+# Booklet maps
+
+
+```{r}
+#| message: false
+#| warning: false
+#| include: false
+
+# Add packages: 
+library(tidyverse)
+library(sf)
+library(nbaR)
+ 
+## specify filenames and parameters
+
+terr_fl <- ""
+
+marine_fl <- "^mem_2023_thr_pro.gpkg$"
+
+esturine_fl <- ""
+
+freshwater_fl <- ""
+
+sa_pei_fl <- "^SA_boundaries_v12.shp$"
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+#| include: false
+
+## load data files
+
+marine <- st_read(list.files(path=here::here("data"), 
+                             pattern=marine_fl, 
+                             recursive = T, 
+                             full.names = T)[1]) 
+
+
+sa_pei <- st_read(list.files(path=here::here("data"), 
+                             pattern=sa_pei_fl, 
+                             recursive = T, 
+                             full.names = T)[1]) 
+
+
+```
+
+## Protection level plots
+
+
+### terrestrial and benthic marine
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 28.34646
+#| fig-height: 18.89764
+
+pro_benth_marine <- marine %>%
+  filter(ecosystem_functional_type_getl3 !="Pelagic ocean waters") %>% 
+  select(ecosystem_type, protection_level) %>%
+  ungroup() 
+
+pro_pel_marine <- marine %>%
+  filter(ecosystem_functional_type_getl3 =="Pelagic ocean waters") %>% 
+  select(ecosystem_type, protection_level) %>%
+  ungroup()
+ 
+
+
+pro_level <- nbaR::nba_map(pro_benth_marine,
+                      COLS = NULL,
+                      geometry,
+                      CAP = "Benthic protection level medium 2025",
+                      FILL = pro_lvl_tash_med)
+
+
+pro_level_clean <- pro_level
+pro_level_clean$layers <- Filter(function(l) {
+  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
+}, pro_level$layers)
+
+pro_level_clean+
+  geom_sf(data=pro_level_benth_poly, colour = "black", fill = NA)+
+  theme(panel.border = element_blank(),
+        legend.key.size = unit(2, "cm"),
+        legend.text = element_text(size = 20))
+
+
+ggsave("outputs/EPL_med_2025_map_benth.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+#st_write(pro_level_benth_poly, "outputs/pro_level.gpkg")
+
+```
+
+
+### Estuarine and pelagic marine
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 28.34646
+#| fig-height: 18.89764
+
+##pelagic
+pro_level <- nbaR::nba_map(pro_level_pel_poly,
+                      COLS = NULL,
+                      geometry,
+                      CAP = "Pelagic protection level lite 2025",
+                      FILL = pro_lvl_tash_med)
+
+# Remove layers that add annotation_scale or annotation_north_arrow
+pro_level_clean <- pro_level
+pro_level_clean$layers <- Filter(function(l) {
+  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
+}, pro_level$layers)
+
+pro_level_clean+
+  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
+  theme(panel.border = element_blank(),
+        legend.key.size = unit(2, "cm"),
+        legend.text = element_text(size = 20))
+
+
+ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+```
+
+
+### Rivers
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 28.34646
+#| fig-height: 18.89764
+
+##pelagic
+pro_level <- nbaR::nba_map(pro_level_pel_poly,
+                      COLS = NULL,
+                      geometry,
+                      CAP = "Pelagic protection level lite 2025",
+                      FILL = pro_lvl_tash_med)
+
+# Remove layers that add annotation_scale or annotation_north_arrow
+pro_level_clean <- pro_level
+pro_level_clean$layers <- Filter(function(l) {
+  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
+}, pro_level$layers)
+
+pro_level_clean+
+  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
+  theme(panel.border = element_blank(),
+        legend.key.size = unit(2, "cm"),
+        legend.text = element_text(size = 20))
+
+
+ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+```
+
+### Wetlands
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 28.34646
+#| fig-height: 18.89764
+
+##pelagic
+pro_level <- nbaR::nba_map(pro_level_pel_poly,
+                      COLS = NULL,
+                      geometry,
+                      CAP = "Pelagic protection level lite 2025",
+                      FILL = pro_lvl_tash_med)
+
+# Remove layers that add annotation_scale or annotation_north_arrow
+pro_level_clean <- pro_level
+pro_level_clean$layers <- Filter(function(l) {
+  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
+}, pro_level$layers)
+
+pro_level_clean+
+  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
+  theme(panel.border = element_blank(),
+        legend.key.size = unit(2, "cm"),
+        legend.text = element_text(size = 20))
+
+
+ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+```
+
+
+### Prince Edward Islands
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 28.34646
+#| fig-height: 18.89764
+
+##pelagic
+pro_level <- nbaR::nba_map(pro_level_pel_poly,
+                      COLS = NULL,
+                      geometry,
+                      CAP = "Pelagic protection level lite 2025",
+                      FILL = pro_lvl_tash_med)
+
+# Remove layers that add annotation_scale or annotation_north_arrow
+pro_level_clean <- pro_level
+pro_level_clean$layers <- Filter(function(l) {
+  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
+}, pro_level$layers)
+
+pro_level_clean+
+  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
+  theme(panel.border = element_blank(),
+        legend.key.size = unit(2, "cm"),
+        legend.text = element_text(size = 20))
+
+
+ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+```
+
+
+
+
+
+
+
