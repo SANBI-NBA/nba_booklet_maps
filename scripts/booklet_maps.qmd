@@ -19,13 +19,9 @@ library(nbaR)
  
 ## specify filenames and parameters
 
-terr_fl <- ""
+map_data_fl <- "^mapdata.gpkg$"
 
 marine_fl <- "^mem_2023_thr_pro.gpkg$"
-
-esturine_fl <- ""
-
-freshwater_fl <- ""
 
 sa_pei_fl <- "^SA_boundaries_v12.shp$"
 
@@ -49,6 +45,15 @@ sa_pei <- st_read(list.files(path=here::here("data"),
                              pattern=sa_pei_fl, 
                              recursive = T, 
                              full.names = T)[1]) 
+
+map_data <- st_read(list.files(path=here::here("data"), 
+                             pattern=map_data_fl, 
+                             recursive = T, 
+                             full.names = T)[1]) 
+#Estuarine = Non-terrestrial (estuarine habitat)
+#freshwater = Non-terrestrial (Aquatic)
+#why is there an empty T_Name?
+
 
 
 ```
@@ -78,27 +83,55 @@ pei <- sa_pei %>%
 
 
 #marine benthic ecosystem protection level
-pro_benth_marine <- marine %>%
+marine_benth <- marine %>%
   filter(ecosystem_functional_type_getl3 !="Pelagic ocean waters") %>% 
-  select(ecosystem_type, protection_level) %>%
   ungroup() 
 
 #marine pelagic ecosystem protection level
-pro_benth_marine <- marine %>%
+marine_pel <- marine %>%
   filter(ecosystem_functional_type_getl3 =="Pelagic ocean waters") %>% 
-  select(ecosystem_type, protection_level) %>%
   ungroup() 
 
 
+
+## map data to full indicator words
+map_data <- map_data %>% 
+mutate(RLE = str_replace_all(RLE, "CR","Critically Endangered" ))%>%
+mutate(RLE = str_replace_all(RLE, "EN","Endangered" ))%>%
+mutate(RLE = str_replace_all(RLE, "VU","Vulnerable" ))%>%
+mutate(RLE = str_replace_all(RLE, "NT","Near Threatened" ))%>%
+mutate(RLE = str_replace_all(RLE, "LC","Least Concern" ))%>%
+  
+mutate(epl_nat_inv24 = str_replace_all(epl_nat_inv24, "WP","Well Protected" ))%>%
+mutate(epl_nat_inv24 = str_replace_all(epl_nat_inv24, "MP","Moderately Protected" ))%>%
+mutate(epl_nat_inv24 = str_replace_all(epl_nat_inv24, "PP","Poorly Protected" ))%>%
+mutate(epl_nat_inv24 = str_replace_all(epl_nat_inv24, "NP","Not Protected" )) %>% 
+  rename(ecosystem_type = T_Name,
+         geom = Shape,
+         protection_level = epl_nat_inv24, 
+         threat_status = RLE)
+
+##terrestrial
+
+terr <- map_data %>% 
+   filter(!ecosystem_type %in% c("Non-terrestrial (estuarine habitat)", 
+                          "Non-terrestrial (Aquatic)"))
+
+
 ## estuaries as points
-est_pnt <- "NA" %>%
+est_pnt <- map_data %>%
+  filter(ecosystem_type == "Non-terrestrial (estuarine habitat)") %>% 
   st_cast("POLYGON") %>% #get each polygon
+  mutate(eco_extent_km2 = st_area(geom)) %>%
+  mutate(eco_extent_km2 = as.numeric(units::set_units(eco_extent_km2, km^2))) %>% 
   st_centroid() %>%   #make points
-  mutate(protection_level == factor(protection_level, levels = nbaR::NBA_categories))%>% #match category to it's colour
-  mutate(threat_status == factor(threat_status, levels = nbaR::NBA_categories)) %>% #match category to it's colour
-  st_jitter(nc_points, amount = 5000) #jitter points
+  mutate(protection_level = factor(protection_level, levels = nbaR::NBA_categories))%>% #match category to it's colour
+  mutate(threat_status = factor(threat_status, levels = nbaR::NBA_categories)) %>% #match category to it's colour
+  st_jitter(nc_points, amount = 50) #jitter points
 
 
+freshwater <- map_data %>%
+  filter(ecosystem_type == "Non-terrestrial (Aquatic)")
 
 
 ```
@@ -120,18 +153,20 @@ est_pnt <- "NA" %>%
 
 
 #combine terrestrial and marine benthic ecosystem protection level
-
+terr_marine_benth <- marine_benth %>% 
+  bind_rows(terr)
+  
 
 
 ##map
 
-pro_level <- nbaR::nba_map(x,
-                      geometry,
+pro_level <- nbaR::nba_map(terr_marine_benth,
+                      geom,
                       FILL = protection_level)
 
 
 pro_level+
-  geom_sf(data=pro_benth_marine, colour = "black", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=marine_benth, colour = "black", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
   geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
   
@@ -155,26 +190,22 @@ ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg
 
 
 
-## will have to think about how to jitter esturaries? 
-## and then colour and scale... 
-
-
-pro_level_marine <- nbaR::nba_map(pro_pel_marine,
-                      geometry,
+pro_level_marine <- nbaR::nba_map(marine_pel,
+                      geom,
                       FILL = protection_level)
 
 
 
 pro_level_marine+
-  geom_sf(data = est_pnt, aes(size = est_size, fill = protection_level)) +
-  ggplot2::scale_size(range = c(3, 15)) +
-  geom_sf(data=pro_pel_marine, colour = "black", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data = est_pnt, aes(size = eco_extent_km2, fill = protection_level)) +
+  ggplot2::scale_size(range = c(3, 30)) +
+  geom_sf(data=marine_pel, colour = "black", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
   geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
   
 
 
-ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave("outputs/EPL_est_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
@@ -192,19 +223,9 @@ ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg
 
 ##Rivers
 
-#province outlines
-provinces <- sa_pei %>% 
-  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
-                          "Prince Edward Islands"))
 
-#Lesotho and Eswatini
-le_esw <- sa_pei %>% 
-  filter(PROVINCE %in% c("Lesotho", "Eswatini"))
-
-
-
-pro_level <- nbaR::nba_map(rivers,
-                      geometry,
+pro_level <- nbaR::nba_map(freshwater,
+                      geom,
                       FILL = protection_level)
 
 
@@ -214,7 +235,7 @@ pro_level+
   
 
 
-ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave("outputs/EPL_rivers.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
@@ -233,19 +254,9 @@ ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg
 
 ##Wetlands
 
-#province outlines
-provinces <- sa_pei %>% 
-  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
-                          "Prince Edward Islands"))
 
-#Lesotho and Eswatini
-le_esw <- sa_pei %>% 
-  filter(PROVINCE %in% c("Lesotho", "Eswatini"))
-
-
-
-pro_level <- nbaR::nba_map(wetlands,
-                      geometry,
+pro_level <- nbaR::nba_map(freshwater,
+                      geom,
                       FILL = protection_level)
 
 
@@ -273,27 +284,25 @@ ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg
 #| fig-width: 28.34646
 #| fig-height: 18.89764
 
-##pelagic
-pro_level <- nbaR::nba_map(pro_level_pel_poly,
-                      COLS = NULL,
+##PEI and SA
+
+pro_level <- nbaR::nba_map(sa_pei,
                       geometry,
-                      CAP = "Pelagic protection level lite 2025",
-                      FILL = pro_lvl_tash_med)
-
-# Remove layers that add annotation_scale or annotation_north_arrow
-pro_level_clean <- pro_level
-pro_level_clean$layers <- Filter(function(l) {
-  !inherits(l$geom, "GeomNorthArrow") && !inherits(l$geom, "GeomScaleBar")
-}, pro_level$layers)
-
-pro_level_clean+
-  geom_sf(data=pro_level_pel_poly, colour = "black", fill = NA)+
-  theme(panel.border = element_blank(),
-        legend.key.size = unit(2, "cm"),
-        legend.text = element_text(size = 20))
+                      FILL = PROVINCE )
 
 
-ggsave("outputs/EPL_med_2025_map_pel.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+ggplot()+
+  geom_sf(data=sa_pei, colour = "black", fill = NA)+
+  theme(legend.position = "none",
+                   plot.background = ggplot2::element_blank(),
+                   panel.background = ggplot2::element_blank(),
+                   panel.border = ggplot2::element_blank(),
+                   axis.text = ggplot2::element_blank(),
+                   axis.ticks = ggplot2::element_blank())
+
+
+ggsave("outputs/sa_pei.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 ```
 
