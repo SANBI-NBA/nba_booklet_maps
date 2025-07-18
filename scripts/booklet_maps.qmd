@@ -172,7 +172,7 @@ pro_level+
   
 
 
-ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave(here::here("outputs/EPL_terr_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
@@ -201,11 +201,11 @@ pro_level_marine+
   ggplot2::scale_size(range = c(3, 30)) +
   geom_sf(data=marine_pel, colour = "black", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
   
 
 
-ggsave("outputs/EPL_est_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave(here::here("outputs/EPL_est_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
