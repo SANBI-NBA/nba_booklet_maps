@@ -16,6 +16,8 @@ editor: visual
 library(tidyverse)
 library(sf)
 library(nbaR)
+library(terra)
+library(tidyterra)
  
 ## specify filenames and parameters
 
@@ -24,6 +26,12 @@ map_data_fl <- "^mapdata.gpkg$"
 marine_fl <- "^mem_2023_thr_pro.gpkg$"
 
 sa_pei_fl <- "^SA_boundaries_v12.shp$"
+
+cnd_marine_benth_fl <- "^condition.tif$"
+
+cnd_terr_fl <- "^terr_cond.tif$"
+
+eez_fl <- "^eez_MEM2018.gpkg$"
 
 ```
 
@@ -46,31 +54,65 @@ sa_pei <- st_read(list.files(path=here::here("data"),
                              recursive = T, 
                              full.names = T)[1]) 
 
-map_data <- st_read(list.files(path=here::here("data"), 
+terr <- st_read(list.files(path=here::here("data"), 
                              pattern=map_data_fl, 
                              recursive = T, 
-                             full.names = T)[1]) 
+                             full.names = T)[1], 
+                layer = "terr") 
 #Estuarine = Non-terrestrial (estuarine habitat)
 #freshwater = Non-terrestrial (Aquatic)
 #why is there an empty T_Name?
 
 
+est <- st_read(list.files(path=here::here("data"), 
+                             pattern=map_data_fl, 
+                             recursive = T, 
+                             full.names = T)[1], 
+                layer = "est_point") 
+
+freshwater <- st_read(list.files(path=here::here("data"), 
+                             pattern=map_data_fl, 
+                             recursive = T, 
+                             full.names = T)[1], 
+                layer = "riv_line") 
+
+
+
+cnd_marine_benth <- rast(list.files(path=here::here("data"), 
+                             pattern=cnd_marine_benth_fl, 
+                             recursive = T, 
+                             full.names = T)[1]) 
+
+cnd_terr <- rast(list.files(path=here::here("data"), 
+                             pattern=cnd_terr_fl, 
+                             recursive = T, 
+                             full.names = T)[1]) 
+
+eez <- st_read(list.files(path=here::here("data"), 
+                             pattern=eez_fl, 
+                             recursive = T, 
+                             full.names = T)[1])
 
 ```
 
 ### data prep
 
 ```{r}
+#| message: false
+#| warning: false
+#| include: false
 #province outlines without eez
-provinces <- sa_pei %>% 
-  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
-                          "Prince Edward Islands", 
-                          "EEZ - mainland marine"))
+pei <- sa_pei %>% 
+  filter(PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands"))
 
 #province outlines with eez
 provinces_eez <- sa_pei %>% 
   filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
-                          "Prince Edward Islands"))
+                          "Prince Edward Islands", 
+                          "EEZ - mainland marine")) %>% 
+  bind_rows(eez %>% 
+              rename(geometry = geom))
 
 #Lesotho and Eswatini
 le_esw <- sa_pei %>% 
@@ -95,7 +137,7 @@ marine_pel <- marine %>%
 
 
 ## map data to full indicator words
-map_data <- map_data %>% 
+terr <- terr %>% 
 mutate(RLE = str_replace_all(RLE, "CR","Critically Endangered" ))%>%
 mutate(RLE = str_replace_all(RLE, "EN","Endangered" ))%>%
 mutate(RLE = str_replace_all(RLE, "VU","Vulnerable" ))%>%
@@ -109,30 +151,55 @@ mutate(epl_nat_inv24 = str_replace_all(epl_nat_inv24, "NP","Not Protected" )) %>
   rename(ecosystem_type = T_Name,
          geom = Shape,
          protection_level = epl_nat_inv24, 
-         threat_status = RLE)
-
-##terrestrial
-
-terr <- map_data %>% 
+         threat_status = RLE)%>% 
    filter(!ecosystem_type %in% c("Non-terrestrial (estuarine habitat)", 
                           "Non-terrestrial (Aquatic)"))
 
 
 ## estuaries as points
-est_pnt <- map_data %>%
-  filter(ecosystem_type == "Non-terrestrial (estuarine habitat)") %>% 
-  st_cast("POLYGON") %>% #get each polygon
-  mutate(eco_extent_km2 = st_area(geom)) %>%
-  mutate(eco_extent_km2 = as.numeric(units::set_units(eco_extent_km2, km^2))) %>% 
-  st_centroid() %>%   #make points
+est_pnt <- est %>%
+   rename(ecosystem_type = EcoType_na,
+         geom = Shape,
+         protection_level = PL_NBA18, 
+         threat_status = RLE_NBA18)%>% 
+mutate(protection_level = str_replace_all(protection_level, "Well","Well Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "Moderately","Moderately Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "Poorly","Poorly Protected" ))%>% 
+#  st_cast("POLYGON") %>% #get each polygon
+#  st_centroid() %>%   #make points
+  # mutate(eco_extent_km2 = st_area(geom)) %>%
+  # mutate(eco_extent_km2 = as.numeric(units::set_units(eco_extent_km2, km^2))) %>% 
   mutate(protection_level = factor(protection_level, levels = nbaR::NBA_categories))%>% #match category to it's colour
   mutate(threat_status = factor(threat_status, levels = nbaR::NBA_categories)) %>% #match category to it's colour
-  st_jitter(nc_points, amount = 50) #jitter points
+  filter(!is.na(protection_level)) %>% 
+  filter(!is.na(threat_status))
 
 
-freshwater <- map_data %>%
-  filter(ecosystem_type == "Non-terrestrial (Aquatic)")
+rivers <- freshwater %>%
+  st_zm() %>% 
+  rename(geom = Shape,
+         protection_level = NBA2018EPL,
+         threat_status = NBA2018ETS)%>% 
+mutate(threat_status = str_replace_all(threat_status, "CR","Critically Endangered" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "EN","Endangered" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "VU","Vulnerable" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "NT","Near Threatened" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "LT","Least Concern" ))%>%
+  
+mutate(protection_level = str_replace_all(protection_level, "WP","Well Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "MP","Moderately Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "PP","Poorly Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "NP","Not Protected" )) %>% 
+  filter(!is.na(protection_level)) %>% 
+  filter(!is.na(threat_status))%>%
+  st_make_valid() %>% 
+ mutate(protection_level = str_trim(protection_level)) %>% # trim whitespace
+ mutate(threat_status = str_trim(threat_status)) %>% # trim whitespace
+  filter(threat_status != "")
 
+##blank protection level and threat status is 7431 foreign, one 4_N_F, and one empty RIVTYPE. 
+
+#summary(as.factor(rivers$RIVTYPE))
 
 ```
 
@@ -158,7 +225,7 @@ terr_marine_benth <- marine_benth %>%
   
 
 
-##map
+##map EPL
 
 pro_level <- nbaR::nba_map(terr_marine_benth,
                       geom,
@@ -166,13 +233,30 @@ pro_level <- nbaR::nba_map(terr_marine_benth,
 
 
 pro_level+
-  geom_sf(data=marine_benth, colour = "black", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
   
 
 
 ggsave(here::here("outputs/EPL_terr_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+
+##map ETS
+
+pro_level <- nbaR::nba_map(terr_marine_benth,
+                      geom,
+                      FILL = threat_status)
+
+
+pro_level+
+  geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
+  
+
+
+ggsave(here::here("outputs/ETS_terr_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
@@ -189,7 +273,7 @@ ggsave(here::here("outputs/EPL_terr_marine.png"), height = 48, width = 72, units
 #| fig-height: 18.89764
 
 
-
+##map EPL
 pro_level_marine <- nbaR::nba_map(marine_pel,
                       geom,
                       FILL = protection_level)
@@ -197,15 +281,36 @@ pro_level_marine <- nbaR::nba_map(marine_pel,
 
 
 pro_level_marine+
-  geom_sf(data = est_pnt, aes(size = eco_extent_km2, fill = protection_level)) +
+  geom_sf(data = st_jitter(est_pnt, factor = 0.002), aes(size = EST_KM2, colour = protection_level)) +
+  ggplot2::scale_colour_manual(values = nbaR::NBA_colours) +
   ggplot2::scale_size(range = c(3, 30)) +
-  geom_sf(data=marine_pel, colour = "black", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=marine_pel, colour = "white", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
   geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
   
 
 
 ggsave(here::here("outputs/EPL_est_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+##map EPL
+pro_level_marine <- nbaR::nba_map(marine_pel,
+                      geom,
+                      FILL = threat_status)
+
+
+
+pro_level_marine+
+  geom_sf(data = st_jitter(est_pnt, factor = 0.002), aes(size = EST_KM2, colour = threat_status)) +
+  ggplot2::scale_colour_manual(values = nbaR::NBA_colours) +
+  ggplot2::scale_size(range = c(3, 30)) +
+  geom_sf(data=marine_pel, colour = "white", fill = NA) + #add ecosystem outlines for marine
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
+  
+
+
+ggsave(here::here("outputs/ETS_est_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
 
 
 ```
@@ -224,18 +329,54 @@ ggsave(here::here("outputs/EPL_est_marine.png"), height = 48, width = 72, units 
 ##Rivers
 
 
-pro_level <- nbaR::nba_map(freshwater,
-                      geom,
-                      FILL = protection_level)
+# pro_level <- nbaR::nba_map(rivers,
+#                       geom,
+#                       FILL = protection_level)
+# pro_level
 
+
+##map EPL
+pro_level <- ggplot() +
+  geom_sf(data = rivers, aes(fill = protection_level, colour = protection_level), lwd = 0.7) +
+  scale_fill_manual(values = nbaR::NBA_colours) +
+  scale_colour_manual(values = nbaR::NBA_colours)+
+    ggplot2::theme(legend.position = "none",
+                   plot.background = ggplot2::element_blank(),
+                   panel.background = ggplot2::element_blank(),
+                   panel.border = ggplot2::element_blank(),
+                   axis.text = ggplot2::element_blank(),
+                   axis.ticks = ggplot2::element_blank())
+  
 
 pro_level+
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
+
+
+
+
+ggsave(here::here("outputs/EPL_rivers.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+##map ETS
+pro_level <- ggplot() +
+  geom_sf(data = rivers, aes(fill = threat_status, colour = threat_status), lwd =  0.7) +
+  scale_fill_manual(values = nbaR::NBA_colours) +
+  scale_colour_manual(values = nbaR::NBA_colours)+
+    ggplot2::theme(legend.position = "none",
+                   plot.background = ggplot2::element_blank(),
+                   panel.background = ggplot2::element_blank(),
+                   panel.border = ggplot2::element_blank(),
+                   axis.text = ggplot2::element_blank(),
+                   axis.ticks = ggplot2::element_blank())
   
 
+pro_level+
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
 
-ggsave("outputs/EPL_rivers.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+
+ggsave(here::here("outputs/ETS_rivers.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
@@ -254,8 +395,8 @@ ggsave("outputs/EPL_rivers.png", height = 48, width = 72, units = 'cm',  bg = "w
 
 ##Wetlands
 
-
-pro_level <- nbaR::nba_map(freshwater,
+##map EPL
+pro_level <- nbaR::nba_map(wetlands,
                       geom,
                       FILL = protection_level)
 
@@ -267,7 +408,23 @@ pro_level+
   
 
 
-ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave("outputs/EPL_wetlands.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+
+##map ETS
+pro_level <- nbaR::nba_map(wetlands,
+                      geom,
+                      FILL = threat_status)
+
+
+pro_level+
+  geom_sf(linewidth = 0.5) + #increase the size of the outlines to make the wetlands visible
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces, colour = "black", fill = NA) #add province outlines
+  
+
+
+ggsave("outputs/ETS_wetlands.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 
 
@@ -286,14 +443,11 @@ ggsave("outputs/EPL_terr_marine.png", height = 48, width = 72, units = 'cm',  bg
 
 ##PEI and SA
 
-pro_level <- nbaR::nba_map(sa_pei,
-                      geometry,
-                      FILL = PROVINCE )
-
 
 
 ggplot()+
-  geom_sf(data=sa_pei, colour = "black", fill = NA)+
+  geom_sf(data=pei, colour = "black", fill = NA)+
+  geom_sf(data=provinces_eez, colour = "black", fill = NA)+
   theme(legend.position = "none",
                    plot.background = ggplot2::element_blank(),
                    panel.background = ggplot2::element_blank(),
@@ -302,11 +456,73 @@ ggplot()+
                    axis.ticks = ggplot2::element_blank())
 
 
-ggsave("outputs/sa_pei.png", height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave(here::here("outputs/sa_pei.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
 
 ```
 
+## condition map
 
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 28.34646
+#| fig-height: 18.89764
+
+##condition
+
+# # Convert the raster to a factor type
+# cnd_marine_benth_fact <- terra::as.factor(cnd_marine_benth)
+
+##marine
+#--------------------------------------------------------------------------
+colrs <- data.frame(id=1:4, condition =c("Natural", "Moderately modified", "Heavily / intensively modified", "Permanently / irreversibly modified"))
+
+
+levels(cnd_marine_benth) <- colrs
+
+
+## crop the raster to the eez
+cnd_crop <- cnd_marine_benth %>% 
+  terra::crop(terra::vect(eez),  mask = TRUE)
+
+#----------------------------------------------------------------------------
+## terrestrial
+
+colrs_terr <- data.frame(id=1:4, condition =c("Permanently / irreversibly modified", "Heavily / intensively modified","Moderately modified", "Natural" ))
+
+levels(cnd_terr) <- colrs_terr
+
+
+## crop the raster to the eez
+cnd_crop_terr <- cnd_terr %>% 
+  terra::crop(terra::vect(sa_pei %>% 
+  filter(!PROVINCE %in% c("EEZ - Prince Edward Isla*", 
+                          "Prince Edward Islands", 
+                          "EEZ - mainland marine"))),  mask = TRUE)
+
+
+ggplot()+
+  geom_spatraster(data=cnd_crop, )+
+  scale_fill_manual(values = nbaR::NBA_colours, na.value = "transparent")+
+  geom_spatraster(data=cnd_crop_terr, )+
+  scale_fill_manual(values = nbaR::NBA_colours, na.value = "transparent")+
+  geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
+  geom_sf(data=provinces_eez, colour = "black", fill = NA)+ #add province outlines
+  theme(legend.position = "none",
+         plot.background = ggplot2::element_blank(),
+         panel.background = ggplot2::element_blank(),
+         panel.border = ggplot2::element_blank(),
+         axis.text = ggplot2::element_blank(),
+         axis.ticks = ggplot2::element_blank())
+
+
+ggsave(here::here("outputs/cnd_terr_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+
+
+
+```
 
 
 
