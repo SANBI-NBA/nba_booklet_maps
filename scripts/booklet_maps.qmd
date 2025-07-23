@@ -52,13 +52,15 @@ marine <- st_read(list.files(path=here::here("data"),
 sa_pei <- st_read(list.files(path=here::here("data"), 
                              pattern=sa_pei_fl, 
                              recursive = T, 
-                             full.names = T)[1]) 
+                             full.names = T)[1]) %>% 
+  st_transform(crs = st_crs(marine))
 
 terr <- st_read(list.files(path=here::here("data"), 
                              pattern=map_data_fl, 
                              recursive = T, 
                              full.names = T)[1], 
-                layer = "terr") 
+                layer = "terr") %>% 
+  st_transform(crs = st_crs(marine))
 #Estuarine = Non-terrestrial (estuarine habitat)
 #freshwater = Non-terrestrial (Aquatic)
 #why is there an empty T_Name?
@@ -68,14 +70,21 @@ est <- st_read(list.files(path=here::here("data"),
                              pattern=map_data_fl, 
                              recursive = T, 
                              full.names = T)[1], 
-                layer = "est_point") 
+                layer = "est_point") %>% 
+  st_transform(crs = st_crs(marine))
 
 freshwater <- st_read(list.files(path=here::here("data"), 
                              pattern=map_data_fl, 
                              recursive = T, 
                              full.names = T)[1], 
-                layer = "riv_line") 
+                layer = "riv_line") %>% 
+  st_transform(crs = st_crs(marine))
 
+eez <- st_read(list.files(path=here::here("data"), 
+                             pattern=eez_fl, 
+                             recursive = T, 
+                             full.names = T)[1])%>% 
+  st_transform(crs = st_crs(marine))
 
 
 cnd_marine_benth <- rast(list.files(path=here::here("data"), 
@@ -88,10 +97,6 @@ cnd_terr <- rast(list.files(path=here::here("data"),
                              recursive = T, 
                              full.names = T)[1]) 
 
-eez <- st_read(list.files(path=here::here("data"), 
-                             pattern=eez_fl, 
-                             recursive = T, 
-                             full.names = T)[1])
 
 ```
 
@@ -176,7 +181,7 @@ mutate(protection_level = str_replace_all(protection_level, "Poorly","Poorly Pro
 
 
 rivers <- freshwater %>%
-  st_zm() %>% 
+  st_zm(drop=TRUE, what = "ZM") %>% 
   rename(geom = Shape,
          protection_level = NBA2018EPL,
          threat_status = NBA2018ETS)%>% 
@@ -190,12 +195,12 @@ mutate(protection_level = str_replace_all(protection_level, "WP","Well Protected
 mutate(protection_level = str_replace_all(protection_level, "MP","Moderately Protected" ))%>%
 mutate(protection_level = str_replace_all(protection_level, "PP","Poorly Protected" ))%>%
 mutate(protection_level = str_replace_all(protection_level, "NP","Not Protected" )) %>% 
-  filter(!is.na(protection_level)) %>% 
-  filter(!is.na(threat_status))%>%
-  st_make_valid() %>% 
- mutate(protection_level = str_trim(protection_level)) %>% # trim whitespace
- mutate(threat_status = str_trim(threat_status)) %>% # trim whitespace
-  filter(threat_status != "")
+filter(!is.na(protection_level)) %>% 
+filter(!is.na(threat_status))%>%
+mutate(protection_level = str_trim(protection_level)) %>% # trim whitespace
+mutate(threat_status = str_trim(threat_status)) %>% # trim whitespace
+filter(threat_status != "") %>% 
+st_cast("LINESTRING")
 
 ##blank protection level and threat status is 7431 foreign, one 4_N_F, and one empty RIVTYPE. 
 
@@ -228,7 +233,7 @@ terr_marine_benth <- marine_benth %>%
 ##map EPL
 
 pro_level <- nbaR::nba_map(terr_marine_benth,
-                      geom,
+                      "vector",
                       FILL = protection_level)
 
 
@@ -245,7 +250,7 @@ ggsave(here::here("outputs/EPL_terr_marine.png"), height = 48, width = 72, units
 ##map ETS
 
 pro_level <- nbaR::nba_map(terr_marine_benth,
-                      geom,
+                      "vector",
                       FILL = threat_status)
 
 
@@ -275,7 +280,7 @@ ggsave(here::here("outputs/ETS_terr_marine.png"), height = 48, width = 72, units
 
 ##map EPL
 pro_level_marine <- nbaR::nba_map(marine_pel,
-                      geom,
+                      "vector",
                       FILL = protection_level)
 
 
@@ -294,7 +299,7 @@ ggsave(here::here("outputs/EPL_est_marine.png"), height = 48, width = 72, units 
 
 ##map EPL
 pro_level_marine <- nbaR::nba_map(marine_pel,
-                      geom,
+                      "vector",
                       FILL = threat_status)
 
 
@@ -330,7 +335,7 @@ ggsave(here::here("outputs/ETS_est_marine.png"), height = 48, width = 72, units 
 
 
 # pro_level <- nbaR::nba_map(rivers,
-#                       geom,
+#                       "vector",
 #                       FILL = protection_level)
 # pro_level
 
@@ -397,7 +402,7 @@ ggsave(here::here("outputs/ETS_rivers.png"), height = 48, width = 72, units = 'c
 
 ##map EPL
 pro_level <- nbaR::nba_map(wetlands,
-                      geom,
+                      "vector",
                       FILL = protection_level)
 
 
