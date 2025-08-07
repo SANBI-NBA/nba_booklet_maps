@@ -257,11 +257,12 @@ pro_level <- nbaR::nba_map(terr_marine_benth,
 pro_level+
   geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA) + #add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  #remove white space around the plot
   
 
 
-ggsave(here::here("outputs/ETS_terr_marine.png"), height = 48, width = 72, units = 'cm',  bg = "white", dpi = 350)
+ggsave(here::here("outputs/ETS_terr_marine.tiff"), height = 8, width = 10, units = 'cm',  bg = "white", dpi = 350)
 
 
 ```
