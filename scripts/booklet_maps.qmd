@@ -3,8 +3,8 @@ title: "booklet maps"
 format: pdf
 editor: visual
 ---
-# Booklet maps
 
+# Booklet maps
 
 ```{r}
 #| message: false
@@ -26,6 +26,8 @@ map_data_fl <- "^mapdata.gpkg$"
 iem_fl <- "^iem_rle_epl_20250808.gpkg$"
 
 rivers_fl <- "^riv_results_vector.gpkg$"
+
+wet_fl <- "^wet_results_vector.gpkg$"
 
 marine_fl <- "^marine_results_for_integration.gpkg$"
 
@@ -49,18 +51,17 @@ eez_fl <- "^eez_MEM2018.gpkg$"
 ## specify sizes
 
 #linewidth
-lwd = 0.03
+lwd = 1
 
 #image height cm
-height = 7
+height = 21
 
 #image width cm
-width = 9
+width = 29
 
 
 
 ```
-
 
 ```{r}
 #| message: false
@@ -127,6 +128,12 @@ est <- st_read(list.files(path=here::here("data"),
 
 rivers <- st_read(list.files(path=here::here("data"), 
                              pattern=rivers_fl, 
+                             recursive = T, 
+                             full.names = T)[1]) %>% 
+  st_transform(crs = st_crs(iem))
+
+wet <- st_read(list.files(path=here::here("data"), 
+                             pattern=wet_fl, 
                              recursive = T, 
                              full.names = T)[1]) %>% 
   st_transform(crs = st_crs(iem))
@@ -309,6 +316,23 @@ mutate(protection_level = str_replace_all(protection_level, "NP","Not Protected"
 filter(!is.na(protection_level)) %>% 
 filter(!is.na(threat_status))
 
+wet <- wet %>%
+  rename(protection_level = EPL,
+         threat_status = RLE)%>% 
+  select(type, extent, threat_status, protection_level, RLE_EPL) %>% 
+mutate(threat_status = str_replace_all(threat_status, "CR","Critically Endangered" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "EN","Endangered" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "VU","Vulnerable" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "NT","Near Threatened" ))%>%
+mutate(threat_status = str_replace_all(threat_status, "LC","Least Concern" ))%>%
+  
+mutate(protection_level = str_replace_all(protection_level, "WP","Well Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "MP","Moderately Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "PP","Poorly Protected" ))%>%
+mutate(protection_level = str_replace_all(protection_level, "NP","Not Protected" )) %>% 
+filter(!is.na(protection_level)) %>% 
+filter(!is.na(threat_status))
+
 ##blank protection level and threat status is 7431 foreign, one 4_N_F, and one empty RIVTYPE. 
 
 #summary(as.factor(rivers$RIVTYPE))
@@ -331,10 +355,7 @@ filter(!is.na(threat_status))
 
 ```
 
-
-
 ## Protection level plots
-
 
 ### terrestrial and benthic marine
 
@@ -423,8 +444,8 @@ pro_level+
  # geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
   geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) + #add province outlines
-  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"),
-        legend.key.size = ggplot2::unit(0.4,"line"))  #remove white space around the plot
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"),#remove white space around the plot
+        legend.key.hight = ggplot2::unit(0.4, "cm"))  
 
 ggsave(here::here("outputs/Unluckies_terr_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
@@ -432,9 +453,7 @@ ggsave(here::here("outputs/Unluckies_terr_marine.pdf"), height = height, width =
 
 ```
 
-
 ### Estuarine and pelagic marine
-
 
 ```{r}
 #| echo: false
@@ -490,9 +509,7 @@ ggsave(here::here("outputs/ETS_est_marine.pdf"), height = height, width = width,
 
 ```
 
-
 ### Rivers
-
 
 ```{r}
 #| echo: false
@@ -561,7 +578,6 @@ ggsave(here::here("outputs/ETS_rivers.pdf"), height = height, width = width, uni
 
 ### Wetlands
 
-
 ```{r}
 #| echo: false
 #| message: false
@@ -574,7 +590,7 @@ ggsave(here::here("outputs/ETS_rivers.pdf"), height = height, width = width, uni
 ##Wetlands
 
 ##map EPL
-pro_level <- nbaR::nba_map(wetlands,
+pro_level <- nbaR::nba_map(wet,
                       "vector",
                       FILL = protection_level)
 
@@ -582,37 +598,37 @@ pro_level <- nbaR::nba_map(wetlands,
 pro_level+
   geom_sf(linewidth = 0.5) + #increase the size of the outlines to make the wetlands visible
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces, colour = "black", fill = NA, lwd = lwd) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) #add province outlines
   
 
 
-ggsave("outputs/EPL_wetlands.tiff", height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/EPL_wetlands.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 ggsave(here::here("outputs/EPL_wetlands.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 
 ##map ETS
-pro_level <- nbaR::nba_map(wetlands,
-                      geom,
+pro_level <- nbaR::nba_map(wet,
+                       "vector",
                       FILL = threat_status)
 
 
 pro_level+
   geom_sf(linewidth = 0.5) + #increase the size of the outlines to make the wetlands visible
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces, colour = "black", fill = NA, lwd = lwd) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) #add province outlines
   
 
 
-ggsave("outputs/ETS_wetlands.tiff", height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/ETS_wetlands.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 ggsave(here::here("outputs/ETS_wetlands.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+
+
 
 
 
 ```
 
-
 ### Prince Edward Islands
-
 
 ```{r}
 #| echo: false
@@ -677,13 +693,12 @@ ggsave(here::here("outputs/ETS_pei.pdf"), height = height, width = width, units 
 
 ## condition map
 
-
 ```{r}
 #| echo: false
 #| message: false
 #| warning: false
-#| fig-width: 28.34646
-#| fig-height: 18.89764
+#| fig-width: 9.34646
+#| fig-height: 7.89764
 
 ##condition
 
@@ -692,7 +707,7 @@ ggsave(here::here("outputs/ETS_pei.pdf"), height = height, width = width, units 
 
 ##marine
 #--------------------------------------------------------------------------
-colrs <- data.frame(id=1:4, condition =c("Natural", "Moderately modified", "Permanently / irreversibly modified", "Permanently / irreversibly modified"))
+colrs <- data.frame(id=1:4, condition =c("Natural / near natural", "Moderately modified", "Severely/critically modified", "Severely/critically modified"))
 
 
 levels(cnd_marine_benth) <- colrs
@@ -705,7 +720,7 @@ cnd_crop <- cnd_marine_benth %>%
 #----------------------------------------------------------------------------
 ## terrestrial
 
-colrs_terr <- data.frame(id=1:4, condition =c("Permanently / irreversibly modified", "Permanently / irreversibly modified","Moderately modified", "Natural" ))
+colrs_terr <- data.frame(id=1:4, condition =c("Severely/critically modified", "Severely/critically modified","Moderately modified", "Natural / near natural" ))
 
 levels(cnd_terr) <- colrs_terr
 
@@ -725,7 +740,11 @@ ggplot()+
   scale_fill_manual(values = nbaR::NBA_colours, na.value = "transparent")+
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
   geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd)+ #add province outlines
-  theme(legend.position = "none",
+  theme(legend.key.size = ggplot2::unit(0.5,"line"),
+        legend.text = element_text(size = 3),
+        legend.position = "inside",
+        legend.title = ggplot2::element_blank(),
+        legend.justification = c("right", "bottom"),
          plot.background = ggplot2::element_blank(),
          panel.background = ggplot2::element_blank(),
          panel.border = ggplot2::element_blank(),
@@ -739,8 +758,3 @@ ggsave(here::here("outputs/cnd_terr_marine.pdf"), height = height, width = width
 
 
 ```
-
-
-
-
-
