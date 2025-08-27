@@ -50,14 +50,17 @@ eez_fl <- "^eez_MEM2018.gpkg$"
 #############################
 ## specify sizes
 
-#linewidth
-lwd = 1
+#terrestrial linewidth
+t_lwd = 0.1
+
+#marine linewidth
+m_lwd = 0.05
 
 #image height cm
-height = 21
+height = 7
 
 #image width cm
-width = 29
+width = 9
 
 
 
@@ -132,7 +135,7 @@ rivers <- st_read(list.files(path=here::here("data"),
                              full.names = T)[1]) %>% 
   st_transform(crs = st_crs(iem))
 
-wet <- st_read(list.files(path=here::here("data"), 
+wet <- st_read(list.files(path="../..", 
                              pattern=wet_fl, 
                              recursive = T, 
                              full.names = T)[1]) %>% 
@@ -171,7 +174,8 @@ provinces_eez <- sa_pei %>%
                           "Prince Edward Islands", 
                           "EEZ - mainland marine")) %>% 
   bind_rows(eez %>% 
-              rename(geometry = geom))
+              rename(geometry = geom)) %>% 
+  st_boundary()
 
 #Lesotho and Eswatini
 le_esw <- sa_pei %>% 
@@ -374,7 +378,6 @@ terr_marine_benth <- marine_benth %>%
 
 marine_benth_line <- st_cast(marine_benth, "POLYGON") %>% 
   st_cast("LINESTRING")
-  
 
 
 ##map EPL
@@ -385,14 +388,16 @@ pro_level <- nbaR::nba_map(terr_marine_benth,
 
 
 pro_level+
-  geom_sf(data=marine_benth_line, colour = "white", fill = NA, lwd = lwd) + #add ecosystem outlines for marine
+  geom_sf(data=marine_benth_line, colour = "white", fill = NA, lwd = m_lwd) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) + #add province outlines
-  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  #remove white space around the plot
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd) + #add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt")) +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
+ # theme_void()
   
 
 
-ggsave(here::here("outputs/EPL_terr_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/EPL_terr_marine_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 ggsave(here::here("outputs/EPL_terr_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
@@ -405,14 +410,15 @@ pro_level <- nbaR::nba_map(terr_marine_benth,
 
 
 pro_level+
-  geom_sf(data=marine_benth, colour = "White", fill = NA, lwd = lwd) + #add ecosystem outlines for marine
+  geom_sf(data=marine_benth, colour = "White", fill = NA, lwd = m_lwd) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) + #add province outlines
-  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  #remove white space around the plot
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd) + #add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/ETS_terr_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/ETS_terr_marine_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 ggsave(here::here("outputs/ETS_terr_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
@@ -427,10 +433,11 @@ pro_level <- nbaR::nba_map(terr_marine_benth %>%
 pro_level+
  # geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) + #add province outlines
-  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  #remove white space around the plot
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = 0.06) + #add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))   +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
-ggsave(here::here("outputs/Unluckies_terr_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/Unluckies_terr_marine.tiff"), height = 9, width = 12, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 
 
@@ -443,11 +450,12 @@ pro_level <- nbaR::nba_map(terr_marine_benth %>%
 pro_level+
  # geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) + #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = 0.06) + #add province outlines
   theme(plot.margin=grid::unit(c(0,0,0,0), "pt"),#remove white space around the plot
-        legend.key.hight = ggplot2::unit(0.4, "cm"))  
+        legend.key.hight = ggplot2::unit(0.4, "cm"))   +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
 
-ggsave(here::here("outputs/Unluckies_terr_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/Unluckies_terr_marine.pdf"), height = 9, width = 12, units = 'cm',  bg = "white", dpi = 300)
 
 
 
@@ -471,16 +479,18 @@ pro_level_marine <- nbaR::nba_map(marine_pel,
 
 
 pro_level_marine+
-  ggplot2::scale_size(range = c(0.001, 3)) +
-  geom_sf(data=marine_pel, colour = "white", fill = NA, lwd = lwd) + #add ecosystem outlines for marine
+  ggplot2::scale_size(range = c(0.1, 8)) +
+  geom_sf(data=marine_pel, colour = "white", fill = NA, lwd = m_lwd) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd)+ #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd)+ #add province outlines
   geom_sf(data = st_jitter(est_pnt, factor = 0.002), aes(size = EST_KM2, colour = protection_level)) +
-  ggplot2::scale_colour_manual(values = nbaR::NBA_colours)
+  ggplot2::scale_colour_manual(values = nbaR::NBA_colours) +  
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/EPL_est_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/EPL_est_marine_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 ggsave(here::here("outputs/EPL_est_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
@@ -492,16 +502,18 @@ pro_level_marine <- nbaR::nba_map(marine_pel,
 
 
 pro_level_marine+
-  ggplot2::scale_size(range = c(0.001, 3)) +
-  geom_sf(data=marine_pel, colour = "white", fill = NA, lwd = lwd) + #add ecosystem outlines for marine
+  ggplot2::scale_size(range = c(0.1, 8)) +
+  geom_sf(data=marine_pel, colour = "white", fill = NA, lwd = m_lwd) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd)+ #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd)+ #add province outlines
   geom_sf(data = st_jitter(est_pnt, factor = 0.002), aes(size = EST_KM2, colour = threat_status)) +
-  ggplot2::scale_colour_manual(values = nbaR::NBA_colours) 
+  ggplot2::scale_colour_manual(values = nbaR::NBA_colours) +  
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/ETS_est_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/ETS_est_marine_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 ggsave(here::here("outputs/ETS_est_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
@@ -529,7 +541,7 @@ ggsave(here::here("outputs/ETS_est_marine.pdf"), height = height, width = width,
 
 ##map EPL
 pro_level <- ggplot() +
-  geom_sf(data = rivers, aes(fill = protection_level, colour = protection_level), lwd = 0.07) +
+  geom_sf(data = rivers, aes(fill = protection_level, colour = protection_level), lwd = 0.2) +
   scale_fill_manual(values = nbaR::NBA_colours) +
   scale_colour_manual(values = nbaR::NBA_colours)+
     ggplot2::theme(legend.position = "none",
@@ -542,18 +554,20 @@ pro_level <- ggplot() +
 
 pro_level+
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd) +  
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
 
 
 
 
-ggsave(here::here("outputs/EPL_rivers.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/EPL_rivers_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 ggsave(here::here("outputs/EPL_rivers.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 ##map ETS
 pro_level <- ggplot() +
-  geom_sf(data = rivers, aes(fill = threat_status, colour = threat_status), lwd =  0.07) +
+  geom_sf(data = rivers, aes(fill = threat_status, colour = threat_status), lwd =  0.2) +
   scale_fill_manual(values = nbaR::NBA_colours) +
   scale_colour_manual(values = nbaR::NBA_colours)+
     ggplot2::theme(legend.position = "none",
@@ -566,11 +580,13 @@ pro_level <- ggplot() +
 
 pro_level+
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd) +#add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
 
 
 
-ggsave(here::here("outputs/ETS_rivers.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/ETS_rivers_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 ggsave(here::here("outputs/ETS_rivers.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 
@@ -596,13 +612,15 @@ pro_level <- nbaR::nba_map(wet,
 
 
 pro_level+
-  geom_sf(linewidth = 0.5) + #increase the size of the outlines to make the wetlands visible
+  geom_sf(linewidth = 0.6) + #increase the size of the outlines to make the wetlands visible
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd)+ #add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/EPL_wetlands.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/EPL_wetlands_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 ggsave(here::here("outputs/EPL_wetlands.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 
@@ -613,13 +631,15 @@ pro_level <- nbaR::nba_map(wet,
 
 
 pro_level+
-  geom_sf(linewidth = 0.5) + #increase the size of the outlines to make the wetlands visible
+  geom_sf(linewidth = 0.6) + #increase the size of the outlines to make the wetlands visible
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd) #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd) +#add province outlines
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/ETS_wetlands.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/ETS_wetlands_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 ggsave(here::here("outputs/ETS_wetlands.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 
@@ -641,17 +661,19 @@ ggsave(here::here("outputs/ETS_wetlands.pdf"), height = height, width = width, u
 
 
 ggplot()+
-  geom_sf(data=pei, colour = "black", fill = NA, lwd = lwd)+
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd)+
+  geom_sf(data=pei, colour = "black", fill = NA, lwd = t_lwd)+
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd) +
   theme(legend.position = "none",
                    plot.background = ggplot2::element_blank(),
                    panel.background = ggplot2::element_blank(),
                    panel.border = ggplot2::element_blank(),
                    axis.text = ggplot2::element_blank(),
-                   axis.ticks = ggplot2::element_blank())
+                   axis.ticks = ggplot2::element_blank())+
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
 
 
-ggsave(here::here("outputs/sa_pei.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/sa_pei_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 ggsave(here::here("outputs/sa_pei.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 embedFonts
 
@@ -663,12 +685,13 @@ pro_level <- nbaR::nba_map(pei_results,
 
 
 pro_level+
- theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  #remove white space around the plot
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/EPL_pei.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
-ggsave(here::here("outputs/EPL_pei.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/EPL_pei_0.1.tiff"), height = height*0.3, width = width*0.3, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
+ggsave(here::here("outputs/EPL_pei.pdf"), height = height*0.3, width = width*0.3, units = 'cm',  bg = "white", dpi = 300)
 
 
 ##map RLE
@@ -678,13 +701,14 @@ pro_level <- nbaR::nba_map(pei_results,
                       FILL = threat_status)
 
 
-pro_level+
- theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  #remove white space around the plot
+pro_level +
+  theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))  +  #remove white space around the plot
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
   
 
 
-ggsave(here::here("outputs/ETS_pei.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
-ggsave(here::here("outputs/ETS_pei.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/ETS_pei_0.1.tiff"), height = height*0.3, width = width*0.3, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
+ggsave(here::here("outputs/ETS_pei.pdf"), height = height*0.3, width = width*0.3, units = 'cm',  bg = "white", dpi = 300)
 
 
 
@@ -739,20 +763,25 @@ ggplot()+
   geom_spatraster(data=cnd_crop_terr, )+
   scale_fill_manual(values = nbaR::NBA_colours, na.value = "transparent")+
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = lwd)+ #add province outlines
-  theme(legend.key.size = ggplot2::unit(0.5,"line"),
-        legend.text = element_text(size = 3),
-        legend.position = "inside",
-        legend.title = ggplot2::element_blank(),
-        legend.justification = c("right", "bottom"),
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = t_lwd)+ #add province outlines
+  theme(
+    # legend.key.size = ggplot2::unit(0.5,"line"),
+    #     legend.text = element_text(size = 3),
+    #     legend.position = "inside",
+    #     legend.title = ggplot2::element_blank(),
+    #     legend.justification = c("right", "bottom"),
+    legend.position = "none",
          plot.background = ggplot2::element_blank(),
          panel.background = ggplot2::element_blank(),
          panel.border = ggplot2::element_blank(),
          axis.text = ggplot2::element_blank(),
-         axis.ticks = ggplot2::element_blank())
+         axis.ticks = ggplot2::element_blank(),
+        plot.margin=grid::unit(c(0,0,0,0), "pt"))
++
+  coord_sf(expand = FALSE)    # <-- prevents padding around data
 
 
-ggsave(here::here("outputs/cnd_terr_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
+ggsave(here::here("outputs/cnd_terr_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 ggsave(here::here("outputs/cnd_terr_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 
