@@ -433,11 +433,11 @@ pro_level <- nbaR::nba_map(terr_marine_benth %>%
 pro_level+
  # geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = 0.06) + #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = 0.1) + #add province outlines
   theme(plot.margin=grid::unit(c(0,0,0,0), "pt"))   +  #remove white space around the plot
   coord_sf(expand = FALSE)    # <-- prevents padding around data
   
-ggsave(here::here("outputs/Unluckies_terr_marine.tiff"), height = 9, width = 12, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
+ggsave(here::here("outputs/Unluckies_terr_marine_0.1_std.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 
 
 
@@ -450,7 +450,7 @@ pro_level <- nbaR::nba_map(terr_marine_benth %>%
 pro_level+
  # geom_sf(data=marine_benth, colour = "White", fill = NA) + #add ecosystem outlines for marine
   geom_sf(data=le_esw, colour = "white", fill = "white") + #make lesotho and eswatini white
-  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = 0.06) + #add province outlines
+  geom_sf(data=provinces_eez, colour = "black", fill = NA, lwd = 0.2) + #add province outlines
   theme(plot.margin=grid::unit(c(0,0,0,0), "pt"),#remove white space around the plot
         legend.key.hight = ggplot2::unit(0.4, "cm"))   +  #remove white space around the plot
   coord_sf(expand = FALSE)    # <-- prevents padding around data
@@ -541,7 +541,7 @@ ggsave(here::here("outputs/ETS_est_marine.pdf"), height = height, width = width,
 
 ##map EPL
 pro_level <- ggplot() +
-  geom_sf(data = rivers, aes(fill = protection_level, colour = protection_level), lwd = 0.2) +
+  geom_sf(data = rivers, aes(fill = protection_level, colour = protection_level), lwd = 0.1) +
   scale_fill_manual(values = nbaR::NBA_colours) +
   scale_colour_manual(values = nbaR::NBA_colours)+
     ggplot2::theme(legend.position = "none",
@@ -777,11 +777,11 @@ ggplot()+
          axis.text = ggplot2::element_blank(),
          axis.ticks = ggplot2::element_blank(),
         plot.margin=grid::unit(c(0,0,0,0), "pt"))
-+
-  coord_sf(expand = FALSE)    # <-- prevents padding around data
+# +
+#   coord_sf(expand = FALSE)    # <-- prevents padding around data
 
 
-ggsave(here::here("outputs/cnd_terr_marine.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
+ggsave(here::here("outputs/cnd_terr_marine_0.1.tiff"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300, device = "tiff")
 ggsave(here::here("outputs/cnd_terr_marine.pdf"), height = height, width = width, units = 'cm',  bg = "white", dpi = 300)
 
 
